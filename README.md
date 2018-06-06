@@ -13,4 +13,4 @@ impact of crypto assets on each other. We compared cryptocurrencies’, crypto c
 crypto tokens’ patterns to the market growth pattern. With this research and insights, buyers of
 crypto assets will have a better understanding of the crypto markets and will be able to make
 intelligent and informed buying and selling decisions.
-final project for class ANLY 699 HU
+
