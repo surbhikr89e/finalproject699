@@ -1,0 +1,126 @@
+---
+title: "bitcoin1"
+author: "SURBHI"
+date: "June 5, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+
+Part 1
+library(coinmarketcapr)
+plot_top_5_currencies()
+market_today <- get_marketcap_ticker_all()
+head(market_today[,1:8])
+library(treemap)
+df1 <- na.omit(market_today[,c('id','market_cap_usd')])
+df1$market_cap_usd <- as.numeric(df1$market_cap_usd)
+df1$formatted_market_cap <-  paste0(df1$id,'\n','$',format(df1$market_cap_usd,big.mark = ',',scientific = F, trim = T))
+treemap(df1, index = 'formatted_market_cap', vSize = 'market_cap_usd', title = 'Cryptocurrency Market Cap', fontsize.labels=c(12, 8), palette='RdYlGn')
+
+
+Part 2
+#install.packages('coindeskr')
+#install.packages('dygraphs')
+library(coindeskr) #R-Package connecting to Coindesk API 
+library(dygraphs) #For interactive Time-series graphs
+last31 <- get_last31days_price() 
+
+
+Part 3
+A
+library(RJSONIO)
+url <- "https://www.bitstamp.net/api/transactions/"
+bs_data <- fromJSON(url) # returns a list
+bs_df <- do.call(rbind,lapply(bs_data,data.frame,stringsAsFactors=FALSE))
+head(bs_df)
+
+library(plyr)
+bs_df2 <- ldply(bs_data,data.frame)
+nullToNA <- function(x) {
+  x[sapply(x, is.null)] <- NA
+  return(x)
+}
+
+head(bs_df2 )
+ 
+write.table(bs_df2, file="porject1.csv", sep=",") 
+
+B
+url_m <- "http://api.bitcoincharts.com/v1/markets.json"
+mkt_data <- fromJSON(url_m)
+str(mkt_data)
+head(mkt_data)
+mkt_data2 <- lapply(mkt_data,nullToNA)
+mkt_df <- do.call(rbind,lapply(mkt_data2,data.frame,stringsAsFactors=FALSE))
+head(mkt_df)
+
+write.table(mkt_df, file="porject2.csv", sep=",") 
+
+C
+bitcoin_file <- "bitstampUSD.csv.gz"
+URL <- "http://api.bitcoincharts.com/v1/csv"
+source_file <- file.path(URL,bitcoin_file)
+# Data destination on local disk
+getwd()
+dataDir <-"C:/Users/SurbhiK/Documents"
+dest_file <- file.path(dataDir,bitcoin_file)
+# Download to disk
+download.file(source_file,destfile = dest_file)
+# Uncompress .gz file and read into a data frame
+raw <- read.csv(gzfile(dest_file),header=FALSE)
+head(raw,2)
+names(raw) <- c("unixtime","price","amount")
+raw$date <- as.Date(as.POSIXct(raw$unixtime, origin="1970-01-01"))
+head(raw,2)
+
+library(plyr)
+library(dplyr)
+library(zoo)
+library(xts)
+library(dygraphs)
+data <- select(raw,-unixtime)
+rm(raw)
+data <- mutate(data,value = price * amount)
+by_date <- group_by(data,date)
+daily <- summarise(by_date,count = n(),
+                   m_price <-  mean(price, na.rm = TRUE),
+                   m_amount <- mean(amount, na.rm = TRUE),
+                   m_value <-  mean(value, na.rm = TRUE))
+ 
+names(daily) <- c("date","count","m_value","m_price","m_amount")
+head(daily,2)
+
+
+# Make the m_value variable into a time series object
+daily_ts <- xts(daily$m_value,order.by=daily$date)
+# Plot with htmlwidget dygraph
+dygraph(daily_ts,ylab="US Dollars", 
+        main="Average Value of bitstampUSD Buys") %>%
+  dySeries("V1",label="Avg_Buy") %>%
+  dyRangeSelector(dateWindow = c("2011-09-13","2015-11-02"))
+  
+  write.table(daily_ts, file="porject3.csv", sep=",") 
