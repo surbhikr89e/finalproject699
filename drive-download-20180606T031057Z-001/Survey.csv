@@ -1,0 +1,11 @@
+S.No.,AgeGroup,Gender,Income,Race,TradedCrypto,NameCurrency
+1,0,0,3,0,Yes,Ethereum
+2,0,0,3,0,No,NA
+3,1,0,4,2,Yes,Ethereum
+4,1,0,3,0,Yes,Ethereum
+5,1,1,3,0,Yes,Litecoin
+6,0,1,3,0,Yes,Ethereum
+7,0,0,4,0,Yes,Ripple
+8,0,0,3,0,Yes,Litecoin
+9,0,1,4,0,Yes,Litecoin
+10,0,1,4,0,No,NA
