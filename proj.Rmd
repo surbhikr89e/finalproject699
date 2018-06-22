@@ -1,0 +1,204 @@
+---
+title: "ANLY699Project"
+author: "SURBHI"
+date: "June 5, 2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+
+#Hypothesis 1 - Regression analysis
+#Collecting Data
+```{r}
+library(RJSONIO)
+
+url <- "https://www.bitstamp.net/api/transactions/"
+bs_data <- fromJSON(url) # returns a list
+bs_df <- do.call(rbind,lapply(bs_data,data.frame,stringsAsFactors=FALSE))
+head(bs_df)
+```
+#Summary of the data
+```{r}
+summary(bs_df)
+```
+#To apply mean value for missing values
+```{r}
+library(plyr)
+bs_df2 <- ldply(bs_data,data.frame)
+nullToNA <- function(x) {
+  x[sapply(x, is.null)] <- NA
+  return(x)
+}
+```
+```{r}
+head(bs_df2 )
+```
+#Converting variables to factors
+```{r}
+bs_df2$type<- factor(bs_df2$type)
+```
+```{r}
+is.factor(bs_df2$type)
+```
+#Converting character variables to numeric variables
+```{r}
+bs_df2$price = as.numeric(bs_df2$price)
+```
+```{r}
+bs_df2$amount = as.numeric(bs_df2$amount)
+```
+```{r}
+summary(bs_df2)
+```
+#Relationship between price and amount
+```{r}
+plot(amount~price,data=bs_df2, main="Relationship between price and amount")
+```
+#Standard deviation
+```{r}
+sapply(bs_df2,sd)
+```
+# Running the regressions
+```{r}
+fit= glm(type~amount+price , data=bs_df2, family=binomial(link="logit"))
+```
+```{r}
+summary(fit)
+```
+
+##None of the independent variables are statistically significant that is why we accpet the null hypothesis that amount and price fields do not impact the purchase of bitcoin.
+
+#Hypothesis 2 - Survey and Logit Rergression
+```{r}
+getwd()
+survey<- read.csv("Survey1.csv", header=TRUE)
+head(survey)
+```
+```{r}
+count<- c(4, 3,2,1)
+namecurrency<- c("Ethereum", "Litecoin", "Ripple","Bitcoin")
+barplot(count, main = "Bar Chart for Types of CryptoCurrencies", names.arg=namecurrency)
+```
+```{r}
+survey$AgeGroup = as.factor(survey$AgeGroup )
+```
+```{r}
+survey$Gender = as.factor(survey$Gender )
+```
+```{r}
+survey$Income = as.factor(survey$Income )
+```
+```{r}
+survey$Race = as.factor(survey$Race)
+```
+```{r}
+summary(survey)
+```
+
+```{r}
+sapply(survey,sd)
+```
+```{r}
+fit_survey= glm(Profitability~AgeGroup+Gender+Income+Race , data=survey, family=binomial(link="logit"))
+```
+```{r}
+summary(fit_survey)
+```
+##None of the independent variables are statistically significant that is why we accpet the null hypothesis that the demographics do not impact the cryptocurrency market.
+
+
+
+#Hypothesis 3 - Timeseries
+```{r}
+bitcoin_file <- "bitstampUSD.csv.gz"
+URL <- "http://api.bitcoincharts.com/v1/csv"
+source_file <- file.path(URL,bitcoin_file)
+```
+
+# Data destination on local disk
+```{r}
+getwd()
+dataDir <-"C:/Users/SurbhiK/Documents"
+dest_file <- file.path(dataDir,bitcoin_file)
+```
+# Download to disk
+```{r}
+download.file(source_file,destfile = dest_file)
+```
+# Uncompress .gz file
+```{r}
+raw <- read.csv(gzfile(dest_file),header=FALSE)
+head(raw,2)
+
+names(raw) <- c("unixtime","price","amount")
+raw$date <- as.Date(as.POSIXct(raw$unixtime, origin="1970-01-01"))
+head(raw,2)
+```
+```{r}
+library(plyr)
+library(dplyr)
+library(zoo)
+library(xts)
+library(dygraphs)
+data <- select(raw,-unixtime)
+rm(raw)
+```
+```{r}
+data <- mutate(data,value = price * amount)
+by_date <- group_by(data,date)
+daily <- summarise(by_date,count = n(),
+                   m_price <-  mean(price, na.rm = TRUE),
+                   m_amount <- mean(amount, na.rm = TRUE),
+                   m_value <-  mean(value, na.rm = TRUE))
+ 
+names(daily) <- c("date","count","m_value","m_price","m_amount")
+head(daily,2)
+```
+```{r}
+str(daily)
+```
+
+# Make the m_value variable into a time series object
+```{r}
+daily_ts <- xts(daily$m_value,order.by=daily$date)
+plot(daily_ts)
+```
+#log transformation
+```{r}
+newts <- log(daily_ts)
+plot(newts)
+```
+## as can be seen from the newts plot the graph is not seasonal or cyclical. The data is a trend type time series.
+
+#prediction
+```{r}
+myts <- ts(daily$m_value, start=c(2012, 1), end=c(2017, 12), frequency=12)
+plot(myts)
+```
+## The time series in myts only runs from January 2012 to December2017. Whereas daily_ts data set runs from September 2011 to June 2018. This is done intentionally so that when forecasting using myts dataset we can see whether the forecast is accurate or not by comparing it to the daily_ts time series plot
+
+# simple exponential - models level
+```{r}
+fit <- HoltWinters(myts, beta=FALSE, gamma=FALSE)
+```
+# double exponential - models level and trend
+```{r}
+fit <- HoltWinters(myts, gamma=FALSE)
+```
+# triple exponential - models level, trend, and seasonal components
+```{r}
+fit <- HoltWinters(myts)
+```
+# predictive accuracy and predict next three future values
+install.packages('forecast')
+```{r}
+library(forecast)
+forecast(fit, 3)
+```
+```{r}
+plot(forecast(fit, 3))
+```
+## Comparing fit dataset forecast for first three months of 2018 to myts forecast for 2018 first 3 months time period. As can be seen in the time series plot the first 3 months of 2018 has an upward trend. 
+
+summary(fit)
